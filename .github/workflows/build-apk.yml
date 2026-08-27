@@ -35,19 +35,29 @@ jobs:
 
       - name: 解压 HBuilderX
         run: |
-          mkdir -p /opt/hbx
-          tar -xzf /tmp/hbx.tar.gz -C /opt/hbx
-          echo "解压完成, HBuilderX 目录:"
-          ls /opt/hbx/
-          find /opt/hbx -name "cli" -type f 2>/dev/null | head
+          # 解压到 /opt（tar 包内含 HBuilderX 顶层目录）
+          tar -xzf /tmp/hbx.tar.gz -C /opt
+          echo "=== 解压后 /opt 顶层 ==="
+          ls /opt/
+          echo "=== 磁盘占用 ==="
+          du -sh /opt/HBuilderX 2>/dev/null || du -sh /opt/*
+          echo "=== 查找 HBuilderX 主目录 ==="
+          HBX=$(find /opt / -maxdepth 4 -type d -name "HBuilderX" 2>/dev/null | head -1)
+          echo "HBuilderX 目录: $HBX"
 
       - name: 定位 cli 并初始化
         run: |
-          CLI=$(find /opt/hbx -name "cli" -type f | head -1)
-          echo "CLI 位于: $CLI"
+          HBX=$(find / -maxdepth 5 -type d -name "HBuilderX" 2>/dev/null | head -1)
+          echo "HBuilderX 目录: ${HBX:-未找到}"
+          CLI=$(find "${HBX:-/opt}" -name "cli" 2>/dev/null | head -1)
+          echo "CLI 位于: ${CLI:-未找到}"
+          if [ -z "$CLI" ]; then
+            echo "搜索所有 cli 可执行文件:"
+            find / -name "cli" -type f 2>/dev/null | head -10
+          fi
           echo "CLI_PATH=$CLI" >> $GITHUB_ENV
-          chmod +x "$CLI" || true
-          "$CLI" version 2>&1 | head -5 || echo "(cli version 非必需)"
+          chmod +x "$CLI" 2>/dev/null || true
+          "$CLI" version 2>&1 | head -5 || true
 
       - name: DCloud CLI 登录
         run: |
@@ -55,32 +65,47 @@ jobs:
             echo "::warning::cli login 输出, 尝试继续"
           }
 
-      - name: HBuilderX 云打包 Android APK
+      - name: 安装项目 npm 依赖
         run: |
-          echo "工程目录: $(pwd)"
-          P=$(pwd)
-          # 使用测试证书云打包(免密), 云端打包自动获取AppKey
-          "$CLI_PATH" publish --project "$P" --platform APP \
-            --android.packgtype release 2>&1 | tail -60
-          EXIT=${PIPESTATUS[0]}
-          echo "publish 退出码: $EXIT"
-          if [ "$EXIT" != "0" ]; then
-            echo "::warning::首次publish失败, 尝试备选参数..."
-            "$CLI_PATH" publish --project "$P" --platform app 2>&1 | tail -30 || echo "备选也失败"
+          cd "$GITHUB_WORKSPACE"
+          if [ -f package.json ]; then
+            npm install --legacy-peer-deps 2>&1 | tail -10
           fi
 
-      - name: 查找 APK 产物
+      - name: 编译 uni-app 应用资源 (www)
         run: |
-          APK=$(find . -name "*.apk" -not -path "*node_modules*" 2>/dev/null | head -1)
-          if [ -n "$APK" ]; then
-            mkdir -p artifact
-            cp "$APK" artifact/RailGo.apk
-            echo "APK: $APK ($(stat -c%s "$APK") bytes)"
-            ls -lh artifact/
+          cd "$GITHUB_WORKSPACE"
+          P=$(pwd)
+          echo "工程目录: $P, manifest appid: $(grep -oE '\"appid\"\s*:\s*\"[^\"]*\"' manifest.json | head -1)"
+          # 清理旧产物
+          rm -rf "$P/unpackage"
+          echo "=== 运行 HBuilderX cli publish (会自动先编译 uniapp 生成 www) ==="
+          "$CLI_PATH" publish --project "$P" --platform APP --android.packgtype release 2>&1 | tee /tmp/publish.log | tail -80
+          echo "=== 编译产物检查 ==="
+          find "$P/unpackage" -maxdepth 4 -type d 2>/dev/null | head -20
+          WWW=$(find "$P/unpackage" -type d -path "*dist/build/app/www" 2>/dev/null | head -1)
+          echo "www 目录: ${WWW:-<<未生成>>}"
+          if [ -n "$WWW" ]; then
+            echo "www 文件数: $(find "$WWW" -type f | wc -l)"
+            ls "$WWW" | head
           else
-            echo "未在仓库目录找到 APK, 尝试全局搜索..."
-            APK2=$(find / -name "*.apk" 2>/dev/null | grep -iE 'railgo|__UNI|app-release|app' | head -1)
-            [ -n "$APK2" ] && { mkdir -p artifact; cp "$APK2" artifact/RailGo.apk; echo "找到: $APK2"; }
+            echo "::error::www 资源未生成！请查看上方日志"
+            echo "publish 日志最后30行:"
+            tail -30 /tmp/publish.log
+          fi
+
+      - name: 确认并上传 www (若 publish 未自动打包)
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          WWW=$(find "$PWD/unpackage" -type d -path "*dist/build/app/www" 2>/dev/null | head -1)
+          echo "www: ${WWW:-无}"
+          # 若 www 已生成但尚未云打包，再次 publish（现在有资源了）
+          if [ -n "$WWW" ]; then
+            APKS=$(find . -name "*.apk" 2>/dev/null)
+            if [ -z "$APKS" ]; then
+              echo "www 已生成但无 APK, 再次 publish 触发云端打包..."
+              "$CLI_PATH" publish --project "$PWD" --platform APP --android.packgtype release 2>&1 | tail -50
+            fi
           fi
 
       - name: Upload APK Artifact
