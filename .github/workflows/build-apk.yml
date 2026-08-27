@@ -62,9 +62,52 @@ jobs:
           echo "CLI_PATH=$CLI" >> $GITHUB_ENV
           if [ -n "$CLI" ]; then chmod +x "$CLI"; echo "--- cli 版本 ---"; "$CLI" version 2>&1 | head -5 || true; fi
 
+      - name: 安装 xvfb (虚拟显示)
+        run: |
+          apt-get update -qq 2>/dev/null || sudo apt-get update -qq
+          apt-get install -y -qq xvfb x11-utils unzip 2>/dev/null || sudo apt-get install -y -qq xvfb x11-utils
+          which Xvfb xvfb-run || echo "xvfb安装检查"
+
+      - name: 启动 HBuilderX (xvfb 虚拟显示)
+        run: |
+          HQ=/opt/HBuilderX
+          # cli 需要 HBuilderX 主程序运行; 用 xvfb-run 启动 HBuilderX 后台
+          echo "=== cli open 帮助 ==="
+          "$CLI_PATH" open --help 2>&1 | head -10 || true
+          echo "=== 通过 xvfb 启动 HBuilderX 主程序 ==="
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 &
+          sleep 3
+          echo "DISPLAY 启动: xvfb pid $!"
+          # 定位 HBuilderX 主程序(可能叫 HBuilderX / hbuilderx 等)
+          MAIN=""
+          for name in HBuilderX hbuilderx HBuilderX.bin; do
+            if [ -f "$HQ/$name" ]; then MAIN="$HQ/$name"; break; fi
+          done
+          if [ -z "$MAIN" ]; then
+            # 根目录可执行文件列表
+            MAIN=$(find "$HQ" -maxdepth 1 -type f -executable ! -name "cli" 2>/dev/null | head -1)
+            # 多边形找包含HBuilder或X的
+            [ -z "$MAIN" ] && MAIN=$(ls "$HQ" | grep -iE 'HBuilderX|hbuilder' | head -1)
+            [ -n "$MAIN" ] && MAIN="$HQ/$MAIN"
+          fi
+          echo "HBuilderX 主程序: ${MAIN:-未找到}"
+          if [ -n "$MAIN" ] && [ -f "$MAIN" ]; then
+            nohup env DISPLAY=:99 "$MAIN" >/tmp/hbx.log 2>&1 &
+            echo "HBuilderX 已后台启动(pid $!), 等待初始化..."
+            sleep 25
+            echo "=== HBuilderX 启动日志尾部 ==="
+            tail -15 /tmp/hbx.log 2>/dev/null || echo "(无日志)"
+            echo "=== 进程检查 ==="
+            ps aux | grep -i hbuilder | grep -v grep | head -3
+          else
+            echo "未找到主程序, 根目录: $(ls "$HQ" | head -30)"
+          fi
+
       - name: DCloud CLI 登录
         run: |
-          "$CLI_PATH" login --username "$DCLOUD_USERNAME" --password "$DCLOUD_PASSWORD" 2>&1 | tail -25 || {
+          sleep 5
+          "$CLI_PATH" login --username "$DCLOUD_USERNAME" --password "$DCLOUD_PASSWORD" 2>&1 | tail -30 || {
             echo "::warning::cli login 输出, 尝试继续"
           }
 
