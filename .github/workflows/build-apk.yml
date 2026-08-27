@@ -3,17 +3,30 @@ name: Build RailGo APK
 # RailGo uniapp (Vue3) GitHub Actions 编译工作流
 # 使用 HBuilderX CLI 云端打包生成 Android APK
 #
-# 使用前必须配置以下 GitHub Secrets（Settings → Secrets and variables → Actions）:
-#   DCLOUD_USERNAME   DCloud 开发者账号（邮箱）
-#   DCLOUD_PASSWORD   DCloud 开发者账号密码
-#   DCLOUD_APPKEY     在 HBuilderX 中 发行→原生App-云打包 获取的应用AppKey
+# 注意：本配置将 DCloud 账号凭据写死在文件中。
+# 若仓库为公开仓库，任何人都可见此凭据，请务必知晓该安全风险！
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-  workflow_dispatch:          # 手动触发
+  workflow_dispatch:
+
+# ====== DCloud 凭据（写死配置） ======
+#
+# DCloud 登录账号
+# DCLOUD_USERNAME: 3928086165@qq.com
+# DCLOUD_PASSWORD: zhc20111204
+#
+# 注意：HBuilderX 云打包还需要 AppKey。
+# 请用上面账号登录 DCloud 开发者中心(dcloud.io) 获取对应 appid(__UNI__1A91000) 的 AppKey，
+# 填入下方 DCLOUD_APPKEY 后即可完成云端打包。
+
+env:
+  DCLOUD_USERNAME: "3928086165@qq.com"
+  DCLOUD_PASSWORD: "zhc20111204"
+  DCLOUD_APPKEY: ""   # <== 需要填写 AppKey
 
 jobs:
   build-apk:
@@ -28,42 +41,30 @@ jobs:
       - name: 显示工程信息
         run: |
           echo "工程根目录: $(pwd)"
-          ls -la
-          cat package.json 2>/dev/null | head -20 || echo "(无 package.json)"
+          cat package.json 2>/dev/null | head -10 || echo "无package.json"
 
-      - name: 安装 node 依赖
+      - name: DCloud CLI 登录
         run: |
-          if [ -f package.json ]; then
-            npm install 2>&1 | tail -5 || echo "依赖安装非必需(由HBuilderX内部处理)"
-          fi
-
-      - name: 配置 DCloud 账号环境
-        env:
-          DCLOUD_USERNAME: ${{ secrets.DCLOUD_USERNAME }}
-          DCLOUD_PASSWORD: ${{ secrets.DCLOUD_PASSWORD }}
-          DCLOUD_APPKEY: ${{ secrets.DCLOUD_APPKEY }}
-        run: |
-          echo "DCloud账号: ${DCLOUD_USERNAME:0:6}***"
-          echo "AppKey: ${DCLOUD_APPKEY:0:6}***"
+          cli login --username "${DCLOUD_USERNAME}" --password "${DCLOUD_PASSWORD}" 2>&1 | tail -20
 
       - name: HBuilderX 云打包 Android APK
         run: |
-          cli publish --platform APP --project . 2>&1 | tail -40 || {
-            echo "::warning::HBuilderX 云打包退出码非0，请检查 DCLOUD_APPKEY 与账号配置"
+          if [ -z "$DCLOUD_APPKEY" ]; then
+            echo "::error::缺少 DCLOUD_APPKEY，无法云打包"
+            echo "请用账号登录 https://dev.dcloud.net.cn 获取应用 AppKey 后填入 workflow"
             exit 1
-          }
+          fi
+          cli publish --platform APP --project . 2>&1 | tail -40
 
       - name: 查找 APK
         run: |
-          echo "搜索 APK..."
           APK=$(find . -name "*.apk" -not -path "*node_modules*" 2>/dev/null | head -1)
           if [ -n "$APK" ]; then
-            echo "发现: $APK"
             mkdir -p artifact
             cp "$APK" artifact/RailGo.apk
             ls -lh artifact/
           else
-            echo "未找到 APK，可能云打包未产出或失败"
+            echo "未找到 APK"
           fi
 
       - name: Upload APK Artifact
