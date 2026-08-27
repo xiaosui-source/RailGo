@@ -1,0 +1,60 @@
+package com.dcloud.zxing2.client.result;
+
+import androidx.core.net.MailTo;
+import com.dcloud.zxing2.Result;
+import java.util.Map;
+import java.util.regex.Pattern;
+
+/* compiled from: r8-map-id-104f5cb9443f97f226975c9c3da4326f7fb829858955ebeffa5836ad8678ba8c */
+/* loaded from: classes.dex */
+public final class EmailAddressResultParser extends ResultParser {
+    private static final Pattern COMMA = Pattern.compile(",");
+
+    @Override // com.dcloud.zxing2.client.result.ResultParser
+    public EmailAddressParsedResult parse(Result result) {
+        String[] strArr;
+        String[] strArr2;
+        String str;
+        String str2;
+        String str3;
+        String massagedText = ResultParser.getMassagedText(result);
+        if (!massagedText.startsWith(MailTo.MAILTO_SCHEME) && !massagedText.startsWith("MAILTO:")) {
+            if (EmailDoCoMoResultParser.isBasicallyValidEmailAddress(massagedText)) {
+                return new EmailAddressParsedResult(massagedText);
+            }
+            return null;
+        }
+        String strSubstring = massagedText.substring(7);
+        int iIndexOf = strSubstring.indexOf(63);
+        if (iIndexOf >= 0) {
+            strSubstring = strSubstring.substring(0, iIndexOf);
+        }
+        try {
+            String strUrlDecode = ResultParser.urlDecode(strSubstring);
+            String[] strArrSplit = !strUrlDecode.isEmpty() ? COMMA.split(strUrlDecode) : null;
+            Map<String, String> nameValuePairs = ResultParser.parseNameValuePairs(massagedText);
+            if (nameValuePairs != null) {
+                if (strArrSplit == null && (str3 = nameValuePairs.get("to")) != null) {
+                    strArrSplit = COMMA.split(str3);
+                }
+                String str4 = nameValuePairs.get("cc");
+                String[] strArrSplit2 = str4 != null ? COMMA.split(str4) : null;
+                String str5 = nameValuePairs.get("bcc");
+                String[] strArrSplit3 = str5 != null ? COMMA.split(str5) : null;
+                String str6 = nameValuePairs.get("subject");
+                str2 = nameValuePairs.get("body");
+                strArr2 = strArrSplit3;
+                strArr = strArrSplit2;
+                str = str6;
+            } else {
+                strArr = null;
+                strArr2 = null;
+                str = null;
+                str2 = null;
+            }
+            return new EmailAddressParsedResult(strArrSplit, strArr, strArr2, str, str2);
+        } catch (IllegalArgumentException unused) {
+            return null;
+        }
+    }
+}

@@ -1,0 +1,13 @@
+package com.taobao.weex.ui.component.richtext.node;
+
+import android.content.Context;
+import com.taobao.weex.ui.component.richtext.node.RichTextNode;
+import java.util.Map;
+
+/* compiled from: r8-map-id-8c2cfb1903e4c438e50e725a9caf630fe5e3f409ce4448463e9f9d02c32f38ea */
+/* loaded from: classes.dex */
+public interface RichTextNodeCreator<T extends RichTextNode> {
+    T createRichTextNode(Context context, String str, String str2);
+
+    T createRichTextNode(Context context, String str, String str2, String str3, Map<String, Object> map, Map<String, Object> map2);
+}

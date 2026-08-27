@@ -1,0 +1,15 @@
+package com.taobao.weex.common;
+
+import java.util.Map;
+
+/* compiled from: r8-map-id-8c2cfb1903e4c438e50e725a9caf630fe5e3f409ce4448463e9f9d02c32f38ea */
+/* loaded from: classes.dex */
+public class WXResponse {
+    public String data;
+    public String errorCode;
+    public String errorMsg;
+    public Map<String, Object> extendParams;
+    public byte[] originalData;
+    public String statusCode;
+    public String toastMsg;
+}

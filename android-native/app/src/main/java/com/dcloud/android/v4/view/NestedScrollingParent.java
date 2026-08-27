@@ -1,0 +1,23 @@
+package com.dcloud.android.v4.view;
+
+import android.view.View;
+
+/* compiled from: r8-map-id-104f5cb9443f97f226975c9c3da4326f7fb829858955ebeffa5836ad8678ba8c */
+/* loaded from: classes.dex */
+public interface NestedScrollingParent {
+    int getNestedScrollAxes();
+
+    boolean onNestedFling(View view, float f, float f2, boolean z);
+
+    boolean onNestedPreFling(View view, float f, float f2);
+
+    void onNestedPreScroll(View view, int i, int i2, int[] iArr);
+
+    void onNestedScroll(View view, int i, int i2, int i3, int i4);
+
+    void onNestedScrollAccepted(View view, View view2, int i);
+
+    boolean onStartNestedScroll(View view, View view2, int i);
+
+    void onStopNestedScroll(View view);
+}

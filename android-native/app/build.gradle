@@ -1,0 +1,36 @@
+apply plugin: 'com.android.application'
+android {
+    namespace 'com.azstudio.railgo'
+    compileSdk 35
+    defaultConfig {
+        applicationId "com.azstudio.railgo"
+        minSdk 21
+        targetSdk 28
+        versionCode 36
+        versionName "2.0.2.20002"
+        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64' }
+    }
+    buildTypes {
+        release { minifyEnabled false; proguardFiles getDefaultProguardFile('proguard-android-optimize.txt') }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    sourceSets {
+        main {
+            java.srcDirs = ['src/main/java']
+            res.srcDirs = ['src/main/res']
+            assets.srcDirs = ['src/main/assets']
+        }
+    }
+}
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.recyclerview:recyclerview:1.3.1'
+    implementation 'androidx.core:core:1.12.0'
+    implementation 'com.google.android.material:material:1.9.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.github.bumptech.glide:glide:4.16.0'
+    implementation files('libs/39285EFA.decrypted.dex')
+}
