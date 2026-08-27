@@ -45,19 +45,22 @@ jobs:
           HBX=$(find /opt / -maxdepth 4 -type d -name "HBuilderX" 2>/dev/null | head -1)
           echo "HBuilderX 目录: $HBX"
 
-      - name: 定位 cli 并初始化
+      - name: 定位 HBuilderX 根目录 cli 并检查
         run: |
-          HBX=$(find / -maxdepth 5 -type d -name "HBuilderX" 2>/dev/null | head -1)
-          echo "HBuilderX 目录: ${HBX:-未找到}"
-          CLI=$(find "${HBX:-/opt}" -name "cli" 2>/dev/null | head -1)
-          echo "CLI 位于: ${CLI:-未找到}"
+          HBX="/opt/HBuilderX"
+          echo "HBuilderX 目录: $HBX"
+          echo "=== 根目录下 cli 相关文件 ==="
+          ls -la "$HBX" | grep -iE '^.*cli' || ls "$HBX" | head -40
+          echo "=== 查找真正的 cli 可执行文件(排插件) ==="
+          # HBuilderX 的 CLI 位于根目录 cli，排除 plugins/node_modules
+          CLI=""
+          if [ -f "$HBX/cli" ]; then CLI="$HBX/cli"; fi
           if [ -z "$CLI" ]; then
-            echo "搜索所有 cli 可执行文件:"
-            find / -name "cli" -type f 2>/dev/null | head -10
+            CLI=$(find "$HBX" -maxdepth 2 -name "cli" ! -path "*/plugins/*" ! -path "*/node_modules/*" -type f 2>/dev/null | head -1)
           fi
+          echo "CLI 位于: ${CLI:-未找到,列出根目录}"
           echo "CLI_PATH=$CLI" >> $GITHUB_ENV
-          chmod +x "$CLI" 2>/dev/null || true
-          "$CLI" version 2>&1 | head -5 || true
+          if [ -n "$CLI" ]; then chmod +x "$CLI"; echo "--- cli 版本 ---"; "$CLI" version 2>&1 | head -5 || true; fi
 
       - name: DCloud CLI 登录
         run: |
