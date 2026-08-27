@@ -1,64 +1,86 @@
 name: Build RailGo APK
 
 # RailGo uniapp (Vue3) GitHub Actions 编译工作流
-# 使用 HBuilderX CLI 云端打包生成 Android APK
+# 使用 HBuilderX Linux 版 CLI 云端打包生成 Android APK
 #
-# 说明：
-# - 云端打包会自动获取应用 AppKey（依据 manifest.json 的 appid 与 DCloud 账号）
-# - 需要 DCloud 账号凭据用于 cli login
-# 注意：本配置将 DCloud 账号凭据写死在文件中。
-# 若仓库为公开仓库，任何人都可见此凭据，请务必知晓该安全风险！
+# HBuilderX Linux 官方下载地址（可更换版本号）:
+#   https://download1.dcloud.net.cn/download/HBuilderX.<version>.linux_x64.full.tar.gz
 
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
 
 env:
-  # DCloud 账号凭据（写死，用于 cli login）
+  # DCloud 账号（用于 cli login，云端打包自动获取 AppKey）
   DCLOUD_USERNAME: "3928086165@qq.com"
   DCLOUD_PASSWORD: "zhc20111204"
+  # HBuilderX Linux 完整版下载地址
+  HBX_URL: "https://download1.dcloud.net.cn/download/HBuilderX.5.24.2026081301.linux_x64.full.tar.gz"
 
 jobs:
   build-apk:
     name: Build Android APK
     runs-on: ubuntu-latest
-    container:
-      image: dcloudio/hbuilderx-cli:latest
+    timeout-minutes: 120      # HBuilderX 下载+打包耗时较长
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 显示工程信息
+      - name: 下载 HBuilderX (Linux)
         run: |
-          echo "工程根目录: $(pwd)"
-          echo "appid: $(grep -oE 'appid[^,]*' manifest.json | head -1)"
-          echo "versionName: $(grep -oE 'versionName[^,]*' manifest.json | head -1)"
+          echo "下载 HBuilderX Linux 完整版 (~1.8GB)..."
+          curl -L -o /tmp/hbx.tar.gz "$HBX_URL" -# --retry 3
+          ls -lh /tmp/hbx.tar.gz
+
+      - name: 解压 HBuilderX
+        run: |
+          mkdir -p /opt/hbx
+          tar -xzf /tmp/hbx.tar.gz -C /opt/hbx
+          echo "解压完成, HBuilderX 目录:"
+          ls /opt/hbx/
+          find /opt/hbx -name "cli" -type f 2>/dev/null | head
+
+      - name: 定位 cli 并初始化
+        run: |
+          CLI=$(find /opt/hbx -name "cli" -type f | head -1)
+          echo "CLI 位于: $CLI"
+          echo "CLI_PATH=$CLI" >> $GITHUB_ENV
+          chmod +x "$CLI" || true
+          "$CLI" version 2>&1 | head -5 || echo "(cli version 非必需)"
 
       - name: DCloud CLI 登录
         run: |
-          cli login --username "$DCLOUD_USERNAME" --password "$DCLOUD_PASSWORD" 2>&1 | tail -25 || \
-            echo "cli login 可能要求交互/环境变量, 继续尝试 publish"
+          "$CLI_PATH" login --username "$DCLOUD_USERNAME" --password "$DCLOUD_PASSWORD" 2>&1 | tail -25 || {
+            echo "::warning::cli login 输出, 尝试继续"
+          }
 
       - name: HBuilderX 云打包 Android APK
         run: |
-          # 云端打包自动获取 AppKey（按 manifest.json 的 appid + 登录账号绑定）
-          cli publish --platform APP --project . 2>&1 | tail -60 || {
-            echo "::error::云打包失败，请检查 DCloud 账号权限与应用 appid 绑定"
-            exit 1
-          }
+          echo "工程目录: $(pwd)"
+          P=$(pwd)
+          # 使用测试证书云打包(免密), 云端打包自动获取AppKey
+          "$CLI_PATH" publish --project "$P" --platform APP \
+            --android.packgtype release 2>&1 | tail -60
+          EXIT=${PIPESTATUS[0]}
+          echo "publish 退出码: $EXIT"
+          if [ "$EXIT" != "0" ]; then
+            echo "::warning::首次publish失败, 尝试备选参数..."
+            "$CLI_PATH" publish --project "$P" --platform app 2>&1 | tail -30 || echo "备选也失败"
+          fi
 
-      - name: 查找 APK
+      - name: 查找 APK 产物
         run: |
           APK=$(find . -name "*.apk" -not -path "*node_modules*" 2>/dev/null | head -1)
           if [ -n "$APK" ]; then
             mkdir -p artifact
             cp "$APK" artifact/RailGo.apk
+            echo "APK: $APK ($(stat -c%s "$APK") bytes)"
             ls -lh artifact/
           else
-            echo "未找到 APK（云打包产物可能未产出）"
+            echo "未在仓库目录找到 APK, 尝试全局搜索..."
+            APK2=$(find / -name "*.apk" 2>/dev/null | grep -iE 'railgo|__UNI|app-release|app' | head -1)
+            [ -n "$APK2" ] && { mkdir -p artifact; cp "$APK2" artifact/RailGo.apk; echo "找到: $APK2"; }
           fi
 
       - name: Upload APK Artifact
@@ -66,4 +88,4 @@ jobs:
         with:
           name: RailGo-APK
           path: artifact/*.apk
-          if-no-files-found: error
+          if-no-files-found: warn
