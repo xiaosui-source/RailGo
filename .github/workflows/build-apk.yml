@@ -3,6 +3,9 @@ name: Build RailGo APK
 # RailGo uniapp (Vue3) GitHub Actions 编译工作流
 # 使用 HBuilderX CLI 云端打包生成 Android APK
 #
+# 说明：
+# - 云端打包会自动获取应用 AppKey（依据 manifest.json 的 appid 与 DCloud 账号）
+# - 需要 DCloud 账号凭据用于 cli login
 # 注意：本配置将 DCloud 账号凭据写死在文件中。
 # 若仓库为公开仓库，任何人都可见此凭据，请务必知晓该安全风险！
 
@@ -14,11 +17,9 @@ on:
   workflow_dispatch:
 
 env:
-  # DCloud 账号凭据（写死）
+  # DCloud 账号凭据（写死，用于 cli login）
   DCLOUD_USERNAME: "3928086165@qq.com"
   DCLOUD_PASSWORD: "zhc20111204"
-  # 云打包 AppKey（HBuilderX 云打包必需）
-  DCLOUD_APPKEY: "848cdaafa5cfc97987dba6641f7cb403"
 
 jobs:
   build-apk:
@@ -33,25 +34,19 @@ jobs:
       - name: 显示工程信息
         run: |
           echo "工程根目录: $(pwd)"
-          cat package.json 2>/dev/null | head -10 || echo "无package.json"
-
-      - name: 配置并检查 AppKey
-        run: |
-          echo "AppKey: ${DCLOUD_APPKEY:0:6}****${DCLOUD_APPKEY: -4}"
-          echo "账号: ${DCLOUD_USERNAME}"
-          test -n "$DCLOUD_APPKEY" && echo "AppKey 已配置"
+          echo "appid: $(grep -oE 'appid[^,]*' manifest.json | head -1)"
+          echo "versionName: $(grep -oE 'versionName[^,]*' manifest.json | head -1)"
 
       - name: DCloud CLI 登录
         run: |
-          # HBuilderX CLI 通过登录鉴权后进行云打包
-          cli login --username "$DCLOUD_USERNAME" --password "$DCLOUD_PASSWORD" 2>&1 | tail -20 || \
-            echo "cli login 可能为交互式, 继续尝试 publish"
+          cli login --username "$DCLOUD_USERNAME" --password "$DCLOUD_PASSWORD" 2>&1 | tail -25 || \
+            echo "cli login 可能要求交互/环境变量, 继续尝试 publish"
 
       - name: HBuilderX 云打包 Android APK
         run: |
-          cli publish --platform APP --android packinfo --project . \
-            --appkey "$DCLOUD_APPKEY" 2>&1 | tail -50 || {
-            echo "::error::云打包可能失败, 检查账号与AppKey"
+          # 云端打包自动获取 AppKey（按 manifest.json 的 appid + 登录账号绑定）
+          cli publish --platform APP --project . 2>&1 | tail -60 || {
+            echo "::error::云打包失败，请检查 DCloud 账号权限与应用 appid 绑定"
             exit 1
           }
 
@@ -63,7 +58,7 @@ jobs:
             cp "$APK" artifact/RailGo.apk
             ls -lh artifact/
           else
-            echo "未找到 APK"
+            echo "未找到 APK（云打包产物可能未产出）"
           fi
 
       - name: Upload APK Artifact
