@@ -2,7 +2,9 @@
 set -e
 
 echo "=== RailGo 离线打包（和云打包一致）==="
-WWW_DIR="$(cd "$(dirname "$0")/.." && pwd)/www"
+# www 位于 offline-pkg/www（基于 GITHUB_WORKSPACE 仓库根）
+WWW_DIR="${GITHUB_WORKSPACE:-$(pwd)}/offline-pkg/www"
+echo "WWW_DIR: $WWW_DIR"
 APPID="__UNI__1A91000"
 APPKEY="848cdaafa5cfc97987dba6641f7cb403"
 PKG="com.azstudio.railgo"
