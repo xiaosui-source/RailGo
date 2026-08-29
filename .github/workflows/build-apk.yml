@@ -1,7 +1,10 @@
 name: Build RailGo APK
 
-# 离线打包：用DCloud官方SDK + 源码编译的www资源，Gradle编译出APK
-# 和云打包一模一样，不依赖DCloud云打包服务
+# 全源码编译 + 官方离线SDK打包
+# 1. clone 官方源码 RailGoApps/RailGo
+# 2. uniapp CLI 编译生成 www
+# 3. 下载 DCloud 官方离线SDK
+# 4. Gradle 离线打包出 APK (和云打包一致, 包名/图标/名称/版本按原版)
 
 on:
   push:
@@ -10,7 +13,7 @@ on:
 
 jobs:
   build:
-    name: Build APK (离线打包)
+    name: Build APK
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -23,20 +26,24 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: 设置 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
       - name: 设置 Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          packages: 'platforms;android-35 build-tools;35.0.0'
 
-      - name: 下载离线SDK并编译APK
+      - name: 全源码编译 + 离线打包
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
+        timeout-minutes: 50
         run: |
           bash offline-pkg/build.sh
 
-      - name: 上传APK
+      - name: 上传 APK
         uses: actions/upload-artifact@v4
         with:
           name: RailGo-APK
-          path: RailGo-2.0.4.apk
+          path: RailGo.apk
           if-no-files-found: error
