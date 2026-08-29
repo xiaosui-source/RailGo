@@ -88,6 +88,33 @@ rm -rf "$PROJ"
 cp -r "$SDK_ROOT/HBuilder-Integrate-AS" "$PROJ"
 MODULE="$PROJ/simpleDemo"
 
+# 覆盖 Gradle 仓库为官方源（SDK默认用阿里云镜像, 近期502不可用）
+echo "重写 Gradle 仓库为官方 google()/mavenCentral()..."
+cat > "$PROJ/build.gradle" <<'GRADLE'
+// Top-level build file
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://plugins.gradle.org/m2/' }
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.7.3'
+    }
+}
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+GRADLE
+cat > "$PROJ/gradle.properties" <<'GRADLE'
+org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+android.useAndroidX=true
+android.nonTransitiveRClass=true
+GRADLE
+
 # 放入编译的 www
 echo "放入 www 到 assets/apps/$APPID/www..."
 rm -rf "$MODULE/src/main/assets/apps/__UNI__A"
