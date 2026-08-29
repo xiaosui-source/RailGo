@@ -55,8 +55,11 @@ echo "appkey已配置"
 GRADLE="$MODULE/build.gradle"
 sed -i "s|namespace 'com.android.simple'|namespace '$PKG'|" "$GRADLE"
 sed -i "s|applicationId \"com.android.simple\"|applicationId \"$PKG\"|" "$GRADLE"
-sed -i 's|versionCode 1|versionCode 20004|' "$GRADLE"
-sed -i 's|versionName "1.0"|versionName "2.0.4"|' "$GRADLE"
+sed -i 's|versionCode 1|versionCode 36|' "$GRADLE"
+sed -i 's|versionName "1.0"|versionName "2.0.2 Build 20002"|' "$GRADLE"
+# 按原版RailGo设置 minSdk=21, targetSdk=28
+sed -i 's|minSdkVersion [0-9][0-9]*|minSdkVersion 21|' "$GRADLE"
+sed -i 's|targetSdkVersion [0-9][0-9]*|targetSdkVersion 28|' "$GRADLE"
 echo "build.gradle已配置"
 
 # 8. 配置应用名（与原版RailGo一致）
