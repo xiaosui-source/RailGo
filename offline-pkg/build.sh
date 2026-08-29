@@ -38,17 +38,24 @@ EOF
 
 # 调整源码到 src/（uniapp CLI 布局）: manifest/app/vue/pages 需在 src 下
 mkdir -p src
-for f in App.vue main.js pages.json manifest.json uni.scss index.html uni.promisify.adaptor.js; do
+for f in App.vue main.js pages.json manifest.json uni.scss uni.promisify.adaptor.js; do
   [ -f "$f" ] && mv "$f" src/
 done
+# index.html 留在根目录（vite 入口）
+echo "index.html 保留在根目录"
 for d in pages components static uni_modules js_sdk api scripts; do
   [ -d "$d" ] && mv "$d" src/
 done
 echo "src/ 布局: $(ls src/)"
 
-# 安装依赖
-echo "安装依赖 (uniapp CLI)..."
-npm install --legacy-peer-deps 2>&1 | tail -5
+# 安装依赖 (含 uniapp 运行时与编译器组件)
+echo "安装 uniapp CLI 完整依赖..."
+V="3.0.0-alpha-5020520260824002"
+npm install --legacy-peer-deps \
+  "@dcloudio/uni-app@$V" "@dcloudio/uni-components@$V" \
+  "@dcloudio/uni-app-plus@$V" "@dcloudio/uni-h5@$V" sass 2>&1 | tail -5
+# 再次安装根依赖(补全vite-plugin-uni等)
+npm install --legacy-peer-deps 2>&1 | tail -3
 
 # ============ 3. 编译生成 www ============
 echo "uniapp CLI 编译 App 资源..."
