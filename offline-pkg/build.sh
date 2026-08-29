@@ -108,6 +108,17 @@ allprojects {
         mavenCentral()
     }
 }
+// 解决 androidx 与 com.android.support 类重复冲突：
+// 全局排除旧版 support 库（强制只保留 androidx）
+subprojects {
+    configurations.all {
+        exclude group: 'com.android.support'
+        exclude module: 'support-compat'
+        exclude module: 'support-core-utils'
+        exclude module: 'support-fragment'
+        exclude module: 'support-annotations'
+    }
+}
 GRADLE
 cat > "$PROJ/gradle.properties" <<'GRADLE'
 org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
