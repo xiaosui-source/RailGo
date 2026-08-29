@@ -33,14 +33,11 @@ ls "$PROJ"
 MODULE="$PROJ/simpleDemo"
 echo "模块目录: $MODULE"
 
-# 4. 复制SDK运行时到模块
-echo "复制SDK运行时(libs/res/src)..."
-mkdir -p "$MODULE/libs"
-cp "$SDK_ROOT/SDK/libs/"*.aar "$MODULE/libs/" 2>/dev/null || true
-cp "$SDK_ROOT/SDK/libs/"*.jar "$MODULE/libs/" 2>/dev/null || true
-cp -r "$SDK_ROOT/SDK/res/." "$MODULE/src/main/res/" 2>/dev/null || true
-cp -r "$SDK_ROOT/SDK/src/." "$MODULE/src/main/java/" 2>/dev/null || true
-cp "$SDK_ROOT/SDK/proguard.cfg" "$MODULE/proguard-rules.pro" 2>/dev/null || true
+# 4. simpleDemo 自带官方推荐的5个核心运行时aar(lib.5plus.base/uniapp-v8等)
+# 不使用 SDK/libs 下的全部120个aar(含广告/地图/推送等可选模块, 会引发manifest合并冲突)
+echo "使用 simpleDemo 自带核心运行时 aar:"
+ls "$MODULE/libs/" 2>/dev/null
+# 其余源码(res/java)保留模板默认
 
 # 5. 放入www应用资源
 echo "放入编译好的www资源..."
