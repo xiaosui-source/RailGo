@@ -59,11 +59,42 @@ sed -i 's|versionCode 1|versionCode 20004|' "$GRADLE"
 sed -i 's|versionName "1.0"|versionName "2.0.4"|' "$GRADLE"
 echo "build.gradle已配置"
 
-# 8. 配置应用名
+# 8. 配置应用名（与原版RailGo一致）
 STRINGS="$MODULE/src/main/res/values/strings.xml"
 if [ -f "$STRINGS" ]; then
-  sed -i 's|<string name="app_name">.*</string>|<string name="app_name">RailGo 铁路行</string>|' "$STRINGS"
+  # 替换所有语言的应用名为 RailGo
+  for f in \$(find "$MODULE/src/main/res/values*" -name strings.xml 2>/dev/null); do
+    sed -i 's|<string name="app_name">.*</string>|<string name="app_name">RailGo</string>|' "\$f"
+  done
 fi
+
+# 8.1 替换为原版RailGo图标
+echo "替换为原版RailGo图标..."
+ICON_DIR="\${GITHUB_WORKSPACE:-\$(pwd)}/offline-pkg/icon"
+# simpleDemo 引用 @drawable/icon
+DR_DIR="$MODULE/src/main/res/drawable"
+DR_HDPI="$MODULE/src/main/res/drawable-hdpi"
+DR_MDPI="$MODULE/src/main/res/drawable-mdpi"
+DR_XHDPI="$MODULE/src/main/res/drawable-xhdpi"
+DR_XXHDPI="$MODULE/src/main/res/drawable-xxhdpi"
+DR_XXXHDPI="$MODULE/src/main/res/drawable-xxxhdpi"
+for d in "$DR_DIR" "$DR_HDPI" "$DR_MDPI" "$DR_XHDPI" "$DR_XXHDPI" "$DR_XXXHDPI"; do
+  if [ -d "\$d" ] && [ -f "\$d/icon.png" ]; then
+    cp "\$ICON_DIR/railgo_icon_72.png" "\$d/icon.png" 2>/dev/null || true
+  fi
+done
+# mipmap 图标
+MM_MDPI="$MODULE/src/main/res/mipmap-mdpi"
+MM_HDPI="$MODULE/src/main/res/mipmap-hdpi"
+MM_XHDPI="$MODULE/src/main/res/mipmap-xhdpi"
+for d in "$MM_MDPI" "$MM_HDPI"; do
+  if [ -d "\$d" ]; then
+    for f in \$d/ic_launcher*.png; do
+      [ -f "\$f" ] && cp "\$ICON_DIR/railgo_icon_72.png" "\$f" 2>/dev/null || true
+    done
+  fi
+done
+echo "图标替换完成"
 
 # 9. local.properties
 echo "sdk.dir=${ANDROID_HOME:-/usr/local/lib/android/sdk}" > "$PROJ/local.properties"
